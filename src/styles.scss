@@ -1,0 +1,147 @@
+@use '@angular/material' as mat;
+
+// ─── Tema base Material 3 ────────────────────────────────────────────────────
+html {
+  height: 100%;
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$violet-palette,
+        tertiary: mat.$cyan-palette,
+      ),
+      typography: Inter,
+      density: 0,
+    )
+  );
+
+  // Override de colores del sistema Material 3
+  --mat-sys-primary:              #6366f1;
+  --mat-sys-on-primary:           #ffffff;
+  --mat-sys-primary-container:    #e0e7ff;
+  --mat-sys-on-primary-container: #3730a3;
+  --mat-sys-secondary:            #06b6d4;
+  --mat-sys-on-secondary:         #ffffff;
+  --mat-sys-tertiary:             #06b6d4;
+  --mat-sys-surface:              #ffffff;
+  --mat-sys-on-surface:           #0f172a;
+  --mat-sys-surface-variant:      #f8fafc;
+  --mat-sys-outline:              #e2e8f0;
+}
+
+// ─── Variables de diseño ─────────────────────────────────────────────────────
+:root {
+  --c-primary:        #6366f1;
+  --c-primary-10:     rgba(99,102,241,0.10);
+  --c-primary-light:  #ede9fe;
+  --c-accent:         #06b6d4;
+  --c-success:        #10b981;
+  --c-warn:           #f43f5e;
+  --c-bg:             #f8fafc;
+  --c-surface:        #ffffff;
+  --c-text:           #0f172a;
+  --c-text-secondary: #64748b;
+  --c-border:         #e2e8f0;
+  --radius-card:      16px;
+  --shadow-card:      0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
+  --shadow-card-hover:0 4px 16px rgba(99,102,241,0.12), 0 8px 32px rgba(0,0,0,0.08);
+}
+
+// ─── Base ────────────────────────────────────────────────────────────────────
+body {
+  color-scheme: light;
+  background-color: var(--c-bg);
+  color: var(--c-text);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+  height: 100%;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 400;
+  margin: 0 0 8px;
+  color: var(--c-text);
+}
+
+// ─── Layout: contenido centrado ──────────────────────────────────────────────
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+// ─── Cards ───────────────────────────────────────────────────────────────────
+.mat-mdc-card {
+  border-radius: var(--radius-card) !important;
+  box-shadow: var(--shadow-card) !important;
+  border: 1px solid var(--c-border) !important;
+  background: var(--c-surface) !important;
+  transition: transform 200ms ease, box-shadow 200ms ease !important;
+}
+
+.card-interactive:hover,
+.mat-mdc-card.clickable:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: var(--shadow-card-hover) !important;
+}
+
+// ─── Progress bar ────────────────────────────────────────────────────────────
+.mat-mdc-progress-bar {
+  --mdc-linear-progress-active-indicator-color: var(--c-primary);
+  --mdc-linear-progress-track-color: var(--c-border);
+  border-radius: 3px !important;
+  overflow: hidden !important;
+}
+.mat-mdc-progress-bar .mdc-linear-progress__bar-inner {
+  border-top-width: 6px !important;
+}
+.mat-mdc-progress-bar .mdc-linear-progress__buffer-bar,
+.mat-mdc-progress-bar .mdc-linear-progress__buffer-dots {
+  height: 6px !important;
+}
+
+// ─── Botones ─────────────────────────────────────────────────────────────────
+.mat-mdc-raised-button,
+.mat-mdc-unelevated-button {
+  border-radius: 10px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+}
+.mat-mdc-outlined-button {
+  border-radius: 10px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+}
+.mat-mdc-button {
+  letter-spacing: 0 !important;
+}
+
+// ─── Tabla zebra ─────────────────────────────────────────────────────────────
+.table-zebra .mat-mdc-row:nth-child(even) td {
+  background-color: #f8fafc;
+}
+.table-zebra .mat-mdc-row:hover td {
+  background-color: var(--c-primary-10) !important;
+  transition: background 150ms ease;
+}
+.table-zebra .mat-mdc-header-row {
+  background-color: #f1f5f9;
+}
+.table-zebra .mat-mdc-header-cell {
+  color: var(--c-text-secondary) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+// ─── Toolbar Material ────────────────────────────────────────────────────────
+.mat-toolbar {
+  font-family: 'Inter', sans-serif !important;
+}
+
+// ─── Inputs / form fields ────────────────────────────────────────────────────
+.mat-mdc-form-field {
+  font-family: 'Inter', sans-serif !important;
+}
