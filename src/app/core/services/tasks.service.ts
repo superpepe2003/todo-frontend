@@ -10,11 +10,12 @@ export class TasksService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = environment.apiUrl;
 
-  getTasks(filters?: { appId?: number; status?: string; assignedToId?: number }): Observable<Task[]> {
+  getTasks(filters?: { appId?: number; status?: string; assignedToId?: number; categoryId?: number }): Observable<Task[]> {
     let params = new HttpParams();
     if (filters?.appId) params = params.set('appId', filters.appId);
     if (filters?.status) params = params.set('status', filters.status);
     if (filters?.assignedToId) params = params.set('assignedToId', filters.assignedToId);
+    if (filters?.categoryId) params = params.set('categoryId', filters.categoryId);
     return this.http.get<ApiResponse<Task[]>>(`${this.apiUrl}/tasks`, { params }).pipe(map(res => res.data));
   }
 

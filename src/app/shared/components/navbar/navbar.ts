@@ -30,6 +30,8 @@ import { NotificationBellComponent } from '../notification-bell/notification-bel
             @if (user.role === 'ADMIN') {
               <a mat-button routerLink="/admin/users"
                  routerLinkActive="nav-active">Usuarios</a>
+              <a mat-button routerLink="/admin/categories"
+                 routerLinkActive="nav-active">Categorías</a>
             }
           </nav>
           <div class="nav-end">

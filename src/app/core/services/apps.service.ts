@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response.model';
@@ -10,19 +10,21 @@ export class AppsService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = environment.apiUrl;
 
-  getApps(): Observable<App[]> {
-    return this.http.get<ApiResponse<App[]>>(`${this.apiUrl}/apps`).pipe(map(res => res.data));
+  getApps(categoryId?: number): Observable<App[]> {
+    let params = new HttpParams();
+    if (categoryId) params = params.set('categoryId', categoryId);
+    return this.http.get<ApiResponse<App[]>>(`${this.apiUrl}/apps`, { params }).pipe(map(res => res.data));
   }
 
   getApp(id: number): Observable<App> {
     return this.http.get<ApiResponse<App>>(`${this.apiUrl}/apps/${id}`).pipe(map(res => res.data));
   }
 
-  createApp(data: { name: string; description?: string }): Observable<App> {
+  createApp(data: { name: string; description?: string; categoryId?: number }): Observable<App> {
     return this.http.post<ApiResponse<App>>(`${this.apiUrl}/apps`, data).pipe(map(res => res.data));
   }
 
-  updateApp(id: number, data: { name?: string; description?: string }): Observable<App> {
+  updateApp(id: number, data: { name?: string; description?: string; categoryId?: number | null }): Observable<App> {
     return this.http.patch<ApiResponse<App>>(`${this.apiUrl}/apps/${id}`, data).pipe(map(res => res.data));
   }
 

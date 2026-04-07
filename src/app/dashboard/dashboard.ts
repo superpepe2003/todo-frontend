@@ -6,13 +6,17 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatSelectModule } from '@angular/material/select';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { DatePipe } from '@angular/common';
 import { forkJoin } from 'rxjs';
 import { TasksService } from '../core/services/tasks.service';
 import { AuthService } from '../core/services/auth.service';
 import { AppsService } from '../core/services/apps.service';
+import { CategoriesService } from '../core/services/categories.service';
 import { Task, TaskStatus } from '../core/models/task.model';
 import { App } from '../core/models/app.model';
+import { Category } from '../core/models/category.model';
 import { StatusBadgeComponent } from '../shared/components/status-badge/status-badge';
 
 interface AppStats {
@@ -33,6 +37,7 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
     RouterLink, MatCardModule, MatButtonModule,
     MatProgressBarModule, MatChipsModule, MatIconModule,
     MatTooltipModule, DatePipe, StatusBadgeComponent,
+    MatSelectModule, MatFormFieldModule,
   ],
   template: `
     <div class="page">
@@ -41,6 +46,26 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
       @if (isAdmin) {
         <section class="section">
           <h2 class="section-title">Resumen de aplicaciones</h2>
+
+          <!-- Filtro por categoría (admin) -->
+          @if (categories().length > 0) {
+            <div class="filter-bar">
+              <mat-form-field appearance="outline" class="category-filter">
+                <mat-label>Filtrar por categoría</mat-label>
+                <mat-select [(value)]="selectedCategoryId" (selectionChange)="onCategoryFilter()">
+                  <mat-option [value]="null">Todas</mat-option>
+                  @for (cat of categories(); track cat.id) {
+                    <mat-option [value]="cat.id">
+                      <span class="cat-option">
+                        <span class="cat-dot" [style.background]="cat.color"></span>
+                        {{ cat.name }}
+                      </span>
+                    </mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
+          }
 
           <!-- Barra horizontal de estados global -->
           @if (globalCounts().total > 0) {
@@ -177,6 +202,11 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
   styles: [`
     .page-title { font-size: 1.5rem; font-weight: 600; color: var(--c-text); margin-bottom: 28px; }
 
+    .filter-bar { margin-bottom: 16px; }
+    .category-filter { min-width: 220px; }
+    .cat-option { display: flex; align-items: center; gap: 8px; }
+    .cat-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
     .section { margin-bottom: 40px; }
     .section-title {
       font-size: 13px; font-weight: 500; color: var(--c-text-secondary);
@@ -267,6 +297,7 @@ export class DashboardComponent implements OnInit {
   private readonly tasksService = inject(TasksService);
   private readonly authService = inject(AuthService);
   private readonly appsService = inject(AppsService);
+  private readonly categoriesService = inject(CategoriesService);
 
   readonly circumference = CIRCUMFERENCE;
 
@@ -275,6 +306,9 @@ export class DashboardComponent implements OnInit {
   readonly globalCounts = signal<Record<TaskStatus, number> & { total: number }>({
     PENDING: 0, IN_PROGRESS: 0, COMPLETED: 0, CANCELLED: 0, total: 0,
   });
+  readonly categories = signal<Category[]>([]);
+
+  selectedCategoryId: number | null = null;
 
   get isAdmin(): boolean {
     return this.authService.isAdmin();
@@ -294,12 +328,21 @@ export class DashboardComponent implements OnInit {
     });
 
     if (this.isAdmin) {
-      this.appsService.getApps().subscribe(apps => {
-        const stats = apps.map(app => this.buildStats(app));
-        this.appStats.set(stats);
-        this.buildGlobalCounts(stats);
-      });
+      this.categoriesService.getCategories().subscribe(cats => this.categories.set(cats));
+      this.loadAdminApps();
     }
+  }
+
+  onCategoryFilter(): void {
+    this.loadAdminApps();
+  }
+
+  private loadAdminApps(): void {
+    this.appsService.getApps(this.selectedCategoryId ?? undefined).subscribe(apps => {
+      const stats = apps.map(app => this.buildStats(app));
+      this.appStats.set(stats);
+      this.buildGlobalCounts(stats);
+    });
   }
 
   dashOffset(progress: number): number {

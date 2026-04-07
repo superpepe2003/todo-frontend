@@ -1,5 +1,6 @@
 import { User } from './user.model';
 import { Task } from './task.model';
+import { Category } from './category.model';
 
 export interface AppMember {
   id: number;
@@ -13,6 +14,8 @@ export interface App {
   id: number;
   name: string;
   description?: string;
+  categoryId?: number;
+  category?: Category;
   createdAt: string;
   updatedAt: string;
   members?: AppMember[];

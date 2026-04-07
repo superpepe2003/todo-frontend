@@ -7,11 +7,15 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelectModule } from '@angular/material/select';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AppsService } from '../../core/services/apps.service';
 import { AuthService } from '../../core/services/auth.service';
+import { CategoriesService } from '../../core/services/categories.service';
 import { App } from '../../core/models/app.model';
+import { Category } from '../../core/models/category.model';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog';
 
 @Component({
@@ -21,7 +25,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
     RouterLink,
     MatCardModule, MatButtonModule, MatIconModule,
     MatProgressBarModule, MatChipsModule, MatTooltipModule,
-    MatProgressSpinnerModule,
+    MatProgressSpinnerModule, MatSelectModule, MatFormFieldModule,
   ],
   template: `
     <div class="page">
@@ -33,6 +37,26 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
           </a>
         }
       </div>
+
+      <!-- Filtro por categoría -->
+      @if (categories().length > 0) {
+        <div class="filter-bar">
+          <mat-form-field appearance="outline" class="category-filter">
+            <mat-label>Categoría</mat-label>
+            <mat-select [(value)]="selectedCategoryId" (selectionChange)="onCategoryFilter()">
+              <mat-option [value]="null">Todas</mat-option>
+              @for (cat of categories(); track cat.id) {
+                <mat-option [value]="cat.id">
+                  <span class="cat-option">
+                    <span class="cat-dot" [style.background]="cat.color"></span>
+                    {{ cat.name }}
+                  </span>
+                </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </div>
+      }
 
       @if (loading()) {
         <div class="loading-container">
@@ -60,6 +84,15 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
               </mat-card-header>
 
               <mat-card-content>
+                <!-- Badge de categoría -->
+                @if (app.category) {
+                  <div class="category-badge"
+                       [style.background]="app.category.color + '33'"
+                       [style.color]="app.category.color">
+                    {{ app.category.name }}
+                  </div>
+                }
+
                 <div class="progress-section">
                   <div class="progress-label">
                     <span>Progreso promedio</span>
@@ -120,8 +153,13 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
     </div>
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     .page-header h1 { font-size: 1.5rem; font-weight: 600; color: var(--c-text); }
+
+    .filter-bar { margin-bottom: 20px; }
+    .category-filter { min-width: 200px; }
+    .cat-option { display: flex; align-items: center; gap: 8px; }
+    .cat-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
 
     .loading-container, .error-container {
       display: flex; flex-direction: column; align-items: center;
@@ -131,7 +169,6 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
 
     .apps-grid { display: flex; flex-wrap: wrap; gap: 20px; }
 
-    /* Card con franja izquierda */
     .app-card {
       width: 300px;
       display: flex;
@@ -143,7 +180,6 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
     :host ::ng-deep .app-card mat-card-header { padding: 16px 16px 0 !important; }
     :host ::ng-deep .app-card mat-card-actions { padding: 8px 8px 8px !important; }
 
-    /* Avatar circular con fondo primary */
     .app-avatar {
       width: 40px; height: 40px;
       border-radius: 10px;
@@ -153,7 +189,15 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
     }
     .app-avatar mat-icon { color: var(--c-primary); font-size: 20px; }
 
-    .progress-section { margin: 12px 0 8px; }
+    /* Badge de categoría */
+    .category-badge {
+      display: inline-block;
+      font-size: 11px; font-weight: 600;
+      padding: 2px 10px; border-radius: 20px;
+      margin-bottom: 10px;
+    }
+
+    .progress-section { margin: 4px 0 8px; }
     .progress-label {
       display: flex; justify-content: space-between;
       font-size: 12px; color: var(--c-text-secondary); margin-bottom: 6px;
@@ -171,7 +215,6 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
     .meta { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--c-text-secondary); margin-top: 6px; }
     .meta-icon { font-size: 14px; width: 14px; height: 14px; }
 
-    /* Botones solo visibles en hover */
     :host ::ng-deep .app-card mat-card-actions button,
     :host ::ng-deep .app-card mat-card-actions a {
       opacity: 0;
@@ -193,26 +236,30 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
 export class AppsListComponent implements OnInit {
   private readonly appsService = inject(AppsService);
   private readonly authService = inject(AuthService);
+  private readonly categoriesService = inject(CategoriesService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
 
-  // Signals — detección de cambios garantizada en Angular 19
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly apps = signal<App[]>([]);
+  readonly categories = signal<Category[]>([]);
+
+  selectedCategoryId: number | null = null;
 
   get isAdmin(): boolean {
     return this.authService.isAdmin();
   }
 
   ngOnInit(): void {
+    this.categoriesService.getCategories().subscribe(cats => this.categories.set(cats));
     this.loadApps();
   }
 
   loadApps(): void {
     this.loading.set(true);
     this.error.set(null);
-    this.appsService.getApps().subscribe({
+    this.appsService.getApps(this.selectedCategoryId ?? undefined).subscribe({
       next: apps => {
         this.apps.set(apps);
         this.loading.set(false);
@@ -222,6 +269,10 @@ export class AppsListComponent implements OnInit {
         this.loading.set(false);
       },
     });
+  }
+
+  onCategoryFilter(): void {
+    this.loadApps();
   }
 
   avgProgress(app: App): number {

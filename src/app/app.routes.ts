@@ -64,6 +64,10 @@ export const routes: Routes = [
             path: 'users',
             loadComponent: () => import('./users/users-list/users-list').then(m => m.UsersListComponent),
           },
+          {
+            path: 'categories',
+            loadComponent: () => import('./categories/categories-admin').then(m => m.CategoriesAdminComponent),
+          },
         ],
       },
     ],
