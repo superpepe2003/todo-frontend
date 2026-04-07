@@ -13,7 +13,7 @@ RUN npm run build -- --configuration=production
 FROM nginx:alpine AS serve
 
 # Copiar el build de Angular al directorio de nginx
-COPY --from=build /app/dist/control-frontend/browser /usr/share/nginx/html
+COPY --from=build /app/dist/frontend/browser /usr/share/nginx/html
 
 # Copiar configuración de nginx para SPA
 COPY nginx.conf /etc/nginx/conf.d/default.conf
