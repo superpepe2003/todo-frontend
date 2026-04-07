@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://tu-api.dominio.com',
+  apiUrl: 'https://todo-api.utopiasoft.net.ar',
 };
