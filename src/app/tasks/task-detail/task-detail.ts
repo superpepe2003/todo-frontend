@@ -94,7 +94,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
                 <mat-icon class="info-icon">star</mat-icon>
                 <div>
                   <p class="info-label">Prioridad</p>
-                  <app-star-rating [value]="task()!.priority ?? 3" [readonly]="true" />
+                  <app-star-rating [value]="task()!.priority" [readonly]="true" />
                 </div>
               </div>
             </div>
