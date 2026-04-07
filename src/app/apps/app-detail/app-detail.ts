@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -6,17 +6,27 @@ import { MatTableModule } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatSelectModule } from '@angular/material/select';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { DatePipe } from '@angular/common';
 import { AppsService } from '../../core/services/apps.service';
 import { AuthService } from '../../core/services/auth.service';
+import { UsersService } from '../../core/services/users.service';
 import { App } from '../../core/models/app.model';
 import { Task } from '../../core/models/task.model';
+import { User } from '../../core/models/user.model';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge';
+import { StarRatingComponent } from '../../shared/components/star-rating/star-rating';
 
 @Component({
   selector: 'app-app-detail',
   standalone: true,
-  imports: [RouterLink, MatCardModule, MatButtonModule, MatTableModule, MatIconModule, MatChipsModule, MatTooltipModule, DatePipe, StatusBadgeComponent],
+  imports: [
+    RouterLink, MatCardModule, MatButtonModule, MatTableModule,
+    MatIconModule, MatChipsModule, MatTooltipModule,
+    MatSelectModule, MatFormFieldModule,
+    DatePipe, StatusBadgeComponent, StarRatingComponent,
+  ],
   template: `
     @if (app()) {
       <div class="page">
@@ -49,10 +59,30 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
         <!-- Tareas -->
         <section class="section">
           <div class="section-header">
-            <h2>Tareas <span class="count">{{ tasks().length }}</span></h2>
+            <h2>Tareas <span class="count">{{ filteredTasks().length }}</span></h2>
+
+            <!-- Filtro por usuario -->
+            @if (isAdmin && users().length > 0) {
+              <mat-form-field appearance="outline" class="user-filter">
+                <mat-label>Filtrar por usuario</mat-label>
+                <mat-select [value]="selectedUserId()" (selectionChange)="selectedUserId.set($event.value)">
+                  <mat-option [value]="null">Todos los usuarios</mat-option>
+                  @for (u of users(); track u.id) {
+                    <mat-option [value]="u.id">{{ u.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            }
           </div>
-          @if (tasks().length > 0) {
-            <table mat-table [dataSource]="tasks()" class="full-width table-zebra">
+
+          @if (filteredTasks().length > 0) {
+            <table mat-table [dataSource]="filteredTasks()" class="full-width table-zebra">
+              <ng-container matColumnDef="priority">
+                <th mat-header-cell *matHeaderCellDef>Prioridad</th>
+                <td mat-cell *matCellDef="let t">
+                  <app-star-rating [value]="t.priority ?? 3" [readonly]="true" />
+                </td>
+              </ng-container>
               <ng-container matColumnDef="title">
                 <th mat-header-cell *matHeaderCellDef>Título</th>
                 <td mat-cell *matCellDef="let t">
@@ -94,8 +124,8 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
           } @else {
             <div class="empty-tasks">
               <mat-icon>assignment</mat-icon>
-              <p>No hay tareas en esta app aún.</p>
-              @if (isAdmin) {
+              <p>{{ selectedUserId() ? 'Sin tareas para este usuario.' : 'No hay tareas en esta app aún.' }}</p>
+              @if (isAdmin && !selectedUserId()) {
                 <a mat-raised-button color="primary"
                    [routerLink]="['/admin/tasks/new']"
                    [queryParams]="{ appId: app()!.id }">
@@ -134,11 +164,13 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
     .header-left h1 { font-size: 1.5rem; font-weight: 600; color: var(--c-text); margin: 0; }
     .header-actions { display: flex; gap: 8px; align-items: center; padding-top: 8px; flex-wrap: wrap; }
     .back-link { color: var(--c-text-secondary) !important; margin-bottom: 4px; }
-
     .description { font-size: 14px; color: var(--c-text-secondary); margin: 0; }
 
     .section { margin-bottom: 36px; }
-    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .section-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 12px; flex-wrap: wrap; gap: 8px;
+    }
 
     h2 { font-size: 1rem; font-weight: 600; color: var(--c-text); margin-bottom: 12px; }
     .count {
@@ -148,16 +180,14 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
       margin-left: 6px; vertical-align: middle;
     }
 
-    .full-width { width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid var(--c-border); }
+    .user-filter { min-width: 200px; margin-bottom: 0; }
 
+    .full-width { width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid var(--c-border); }
     .task-title { font-weight: 500; color: var(--c-text); font-size: 13px; }
     .cell-overdue { color: var(--c-warn); font-weight: 500; }
     .progress-cell { font-weight: 600; color: var(--c-primary); font-size: 13px; }
-
-    /* Task row click cursor */
     .task-row { cursor: default; }
 
-    /* Miembros */
     .members-list { display: flex; flex-wrap: wrap; gap: 8px; }
     .member-chip {
       display: inline-flex; align-items: center; gap: 8px;
@@ -186,11 +216,20 @@ export class AppDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly appsService = inject(AppsService);
   private readonly authService = inject(AuthService);
+  private readonly usersService = inject(UsersService);
 
   readonly app = signal<App | null>(null);
-  // Las tareas vienen embebidas en getApp() — no hace falta un endpoint separado
-  readonly tasks = signal<Task[]>([]);
-  displayedColumns = ['title', 'status', 'assignedTo', 'deadline', 'progress', 'actions'];
+  readonly allTasks = signal<Task[]>([]);
+  readonly users = signal<User[]>([]);
+  readonly selectedUserId = signal<number | null>(null);
+
+  readonly filteredTasks = computed(() => {
+    const uid = this.selectedUserId();
+    if (!uid) return this.allTasks();
+    return this.allTasks().filter(t => t.assignedToId === uid);
+  });
+
+  displayedColumns = ['priority', 'title', 'status', 'assignedTo', 'deadline', 'progress', 'actions'];
 
   get isAdmin(): boolean {
     return this.authService.isAdmin();
@@ -204,7 +243,20 @@ export class AppDetailComponent implements OnInit {
     const id = Number(this.route.snapshot.paramMap.get('id'));
     this.appsService.getApp(id).subscribe(app => {
       this.app.set(app);
-      this.tasks.set(app.tasks ?? []);
+      // Ordenar las tareas embebidas por priority DESC, luego deadline ASC
+      const sorted = [...(app.tasks ?? [])].sort((a, b) => {
+        const pDiff = (b.priority ?? 3) - (a.priority ?? 3);
+        if (pDiff !== 0) return pDiff;
+        if (!a.deadline) return 1;
+        if (!b.deadline) return -1;
+        return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+      });
+      this.allTasks.set(sorted);
     });
+
+    if (this.isAdmin) {
+      this.usersService.getUsers().subscribe(users => this.users.set(users));
+    }
   }
+
 }

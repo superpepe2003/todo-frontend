@@ -13,6 +13,7 @@ import { AppsService } from '../../core/services/apps.service';
 import { UsersService } from '../../core/services/users.service';
 import { App } from '../../core/models/app.model';
 import { User } from '../../core/models/user.model';
+import { StarRatingComponent } from '../../shared/components/star-rating/star-rating';
 
 @Component({
   selector: 'app-task-form',
@@ -20,7 +21,7 @@ import { User } from '../../core/models/user.model';
   imports: [
     ReactiveFormsModule, FormsModule,
     MatFormFieldModule, MatInputModule, MatButtonModule,
-    MatCardModule, MatSelectModule,
+    MatCardModule, MatSelectModule, StarRatingComponent,
   ],
   template: `
     <div class="page">
@@ -58,6 +59,13 @@ import { User } from '../../core/models/user.model';
               <mat-label>Título</mat-label>
               <input matInput formControlName="title" />
             </mat-form-field>
+
+            <div class="priority-field">
+              <label class="priority-label">Prioridad</label>
+              <app-star-rating
+                [value]="form.get('priority')!.value ?? 3"
+                (valueChange)="form.get('priority')!.setValue($event)" />
+            </div>
 
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>Descripción</mat-label>
@@ -104,6 +112,12 @@ import { User } from '../../core/models/user.model';
     .page { padding: 24px; max-width: 600px; margin: 0 auto; }
     .full-width { width: 100%; margin-bottom: 8px; }
     .actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+    .priority-field {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 16px;
+    }
+    .priority-label { font-size: 14px; color: var(--c-text-secondary); flex-shrink: 0; }
 
     /* Input de búsqueda dentro del mat-select */
     :host ::ng-deep .search-option {
@@ -166,6 +180,7 @@ export class TaskFormComponent implements OnInit {
     appId: [null as number | null, Validators.required],
     assignedToId: [null as number | null],
     deadlineDays: [null as number | null],
+    priority: [3],
   });
 
   ngOnInit(): void {
@@ -184,6 +199,7 @@ export class TaskFormComponent implements OnInit {
           appId: task.appId,
           assignedToId: task.assignedToId ?? null,
           deadlineDays: task.deadlineDays ?? null,
+          priority: task.priority ?? 3,
         });
       });
       return;
@@ -202,7 +218,7 @@ export class TaskFormComponent implements OnInit {
 
     // appId no existe en UpdateTaskDto — no enviarlo en modo edición
     const data: any = this.isEdit
-      ? { title: raw.title, description: raw.description, type: raw.type, assignedToId: raw.assignedToId, deadlineDays: raw.deadlineDays }
+      ? { title: raw.title, description: raw.description, type: raw.type, assignedToId: raw.assignedToId, deadlineDays: raw.deadlineDays, priority: raw.priority }
       : { ...raw };
 
     if (!data.assignedToId) delete data.assignedToId;

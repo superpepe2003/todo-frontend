@@ -11,13 +11,14 @@ import { TasksService } from '../../core/services/tasks.service';
 import { AuthService } from '../../core/services/auth.service';
 import { Task } from '../../core/models/task.model';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge';
+import { StarRatingComponent } from '../../shared/components/star-rating/star-rating';
 import { ProgressFormComponent } from '../progress-form/progress-form';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog';
 
 @Component({
   selector: 'app-task-detail',
   standalone: true,
-  imports: [RouterLink, MatCardModule, MatButtonModule, MatIconModule, MatProgressBarModule, DatePipe, StatusBadgeComponent],
+  imports: [RouterLink, MatCardModule, MatButtonModule, MatIconModule, MatProgressBarModule, DatePipe, StatusBadgeComponent, StarRatingComponent],
   template: `
     @if (task()) {
       <div class="page">
@@ -89,6 +90,13 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
                   </div>
                 </div>
               }
+              <div class="info-item">
+                <mat-icon class="info-icon">star</mat-icon>
+                <div>
+                  <p class="info-label">Prioridad</p>
+                  <app-star-rating [value]="task()!.priority ?? 3" [readonly]="true" />
+                </div>
+              </div>
             </div>
 
             @if (task()!.description) {

@@ -18,6 +18,7 @@ import { Task, TaskStatus } from '../core/models/task.model';
 import { App } from '../core/models/app.model';
 import { Category } from '../core/models/category.model';
 import { StatusBadgeComponent } from '../shared/components/status-badge/status-badge';
+import { StarRatingComponent } from '../shared/components/star-rating/star-rating';
 
 interface AppStats {
   app: App;
@@ -36,7 +37,7 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
   imports: [
     RouterLink, MatCardModule, MatButtonModule,
     MatProgressBarModule, MatChipsModule, MatIconModule,
-    MatTooltipModule, DatePipe, StatusBadgeComponent,
+    MatTooltipModule, DatePipe, StatusBadgeComponent, StarRatingComponent,
     MatSelectModule, MatFormFieldModule,
   ],
   template: `
@@ -155,7 +156,20 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
       }
 
       <section class="section">
-        <h2 class="section-title">Mis tareas activas</h2>
+        <div class="tasks-section-header">
+          <h2 class="section-title">Mis tareas activas</h2>
+          <!-- Filtro por prioridad mínima -->
+          <mat-form-field appearance="outline" class="priority-filter">
+            <mat-label>Prioridad</mat-label>
+            <mat-select [value]="minPriority()" (selectionChange)="minPriority.set($event.value)">
+              <mat-option [value]="1">Todas las prioridades</mat-option>
+              <mat-option [value]="3">★★★ 3+</mat-option>
+              <mat-option [value]="4">★★★★ 4+</mat-option>
+              <mat-option [value]="5">★★★★★ 5</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
         <div class="tasks-grid">
           @for (task of activeTasks(); track task.id) {
             <mat-card class="task-card" [class.task-overdue]="task.isOverdue">
@@ -168,12 +182,18 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
                         <mat-icon>schedule</mat-icon> Vencida
                       </span>
                     }
+                    @if (task.isOverdue && (task.priority ?? 3) >= 4) {
+                      <span class="urgent-badge">URGENTE</span>
+                    }
                   </div>
                   <a mat-icon-button [routerLink]="['/tasks', task.id]" matTooltip="Ver detalle">
                     <mat-icon>open_in_new</mat-icon>
                   </a>
                 </div>
                 <h3 class="task-title">{{ task.title }}</h3>
+                <div class="task-stars">
+                  <app-star-rating [value]="task.priority ?? 3" [readonly]="true" />
+                </div>
                 <div class="task-meta">
                   <mat-icon class="meta-icon">folder_open</mat-icon>
                   <span>{{ task.app?.name }}</span>
@@ -192,7 +212,7 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
           } @empty {
             <div class="empty-state">
               <mat-icon>task_alt</mat-icon>
-              <p>No tenés tareas activas.</p>
+              <p>{{ minPriority() > 1 ? 'No hay tareas con esa prioridad.' : 'No tenés tareas activas.' }}</p>
             </div>
           }
         </div>
@@ -280,6 +300,19 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
     .meta-icon { font-size: 13px; width: 13px; height: 13px; }
     .meta-sep { color: var(--c-border); }
 
+    .tasks-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .tasks-section-header .section-title { margin-bottom: 0; }
+    .priority-filter { min-width: 180px; }
+
+    .task-stars { margin: 4px 0 8px; }
+
+    .urgent-badge {
+      display: inline-flex; align-items: center;
+      background: #f43f5e; color: white;
+      border-radius: 4px; padding: 1px 7px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
+    }
+
     .task-progress { display: flex; align-items: center; gap: 10px; }
     .task-progress mat-progress-bar { flex: 1; }
     .progress-pct { font-size: 12px; font-weight: 600; color: var(--c-primary); white-space: nowrap; }
@@ -301,7 +334,7 @@ export class DashboardComponent implements OnInit {
 
   readonly circumference = CIRCUMFERENCE;
 
-  readonly activeTasks = signal<Task[]>([]);
+  readonly allActiveTasks = signal<Task[]>([]);
   readonly appStats = signal<AppStats[]>([]);
   readonly globalCounts = signal<Record<TaskStatus, number> & { total: number }>({
     PENDING: 0, IN_PROGRESS: 0, COMPLETED: 0, CANCELLED: 0, total: 0,
@@ -309,6 +342,12 @@ export class DashboardComponent implements OnInit {
   readonly categories = signal<Category[]>([]);
 
   selectedCategoryId: number | null = null;
+  minPriority = signal<number>(1);
+
+  readonly activeTasks = computed(() => {
+    const min = this.minPriority();
+    return this.allActiveTasks().filter(t => (t.priority ?? 3) >= min);
+  });
 
   get isAdmin(): boolean {
     return this.authService.isAdmin();
@@ -320,11 +359,16 @@ export class DashboardComponent implements OnInit {
       this.tasksService.getTasks({ status: 'PENDING' }),
       this.tasksService.getTasks({ status: 'IN_PROGRESS' }),
     ]).subscribe(([pending, inProgress]) => {
-      this.activeTasks.set([...pending, ...inProgress].sort((a, b) => {
+      const sorted = [...pending, ...inProgress].sort((a, b) => {
+        // 1. Prioridad DESC
+        const pDiff = (b.priority ?? 3) - (a.priority ?? 3);
+        if (pDiff !== 0) return pDiff;
+        // 2. Deadline ASC
         if (!a.deadline) return 1;
         if (!b.deadline) return -1;
         return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
-      }));
+      });
+      this.allActiveTasks.set(sorted);
     });
 
     if (this.isAdmin) {

@@ -18,6 +18,7 @@ export interface Task {
   type: TaskType;
   status: TaskStatus;
   progress: number;
+  priority: number;
   deadline?: string;
   deadlineDays?: number;
   appId: number;
