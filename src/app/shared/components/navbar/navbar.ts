@@ -25,6 +25,8 @@ import { NotificationBellComponent } from '../notification-bell/notification-bel
                [routerLinkActiveOptions]="{ exact: true }">Dashboard</a>
             <a mat-button routerLink="/apps"
                routerLinkActive="nav-active">Aplicaciones</a>
+            <a mat-button routerLink="/tasks"
+               routerLinkActive="nav-active">Tareas</a>
             @if (user.role === 'ADMIN') {
               <a mat-button routerLink="/admin/users"
                  routerLinkActive="nav-active">Usuarios</a>

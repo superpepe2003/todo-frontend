@@ -62,7 +62,7 @@ import { User } from '../../core/models/user.model';
               <input matInput type="number" formControlName="deadlineDays" min="1" />
             </mat-form-field>
             <div class="actions">
-              <button mat-button type="button" (click)="router.navigate(['/apps'])">Cancelar</button>
+              <button mat-button type="button" (click)="router.navigate(['/tasks'])">Cancelar</button>
               <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid">
                 {{ isEdit ? 'Guardar' : 'Crear' }}
               </button>
@@ -132,9 +132,16 @@ export class TaskFormComponent implements OnInit {
 
   onSubmit(): void {
     if (this.form.invalid) return;
-    const data: any = { ...this.form.value };
+    const raw: any = { ...this.form.value };
+
+    // appId no existe en UpdateTaskDto — no enviarlo en modo edición
+    const data: any = this.isEdit
+      ? { title: raw.title, description: raw.description, type: raw.type, assignedToId: raw.assignedToId, deadlineDays: raw.deadlineDays }
+      : { ...raw };
+
     if (!data.assignedToId) delete data.assignedToId;
     if (!data.deadlineDays) delete data.deadlineDays;
+    if (data.description === '') delete data.description;
 
     const request = this.isEdit
       ? this.tasksService.updateTask(this.taskId!, data)
@@ -143,7 +150,7 @@ export class TaskFormComponent implements OnInit {
     request.subscribe({
       next: task => {
         this.snackBar.open(this.isEdit ? 'Tarea actualizada' : 'Tarea creada', 'Cerrar', { duration: 3000 });
-        this.router.navigate(['/tasks', task.id]);
+        this.router.navigate(['/tasks', task.id]);  // ir al detalle de la tarea creada/editada
       },
       error: () => this.snackBar.open('Error al guardar', 'Cerrar', { duration: 3000 }),
     });

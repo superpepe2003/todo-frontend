@@ -25,7 +25,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
         <!-- Header -->
         <div class="page-header">
           <div class="header-left">
-            <a mat-button routerLink="/apps" class="back-link">
+            <a mat-button routerLink="/tasks" class="back-link">
               <mat-icon>arrow_back</mat-icon> Volver
             </a>
             <h1>{{ task()!.title }}</h1>

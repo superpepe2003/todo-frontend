@@ -29,6 +29,10 @@ export const routes: Routes = [
         loadComponent: () => import('./apps/app-detail/app-detail').then(m => m.AppDetailComponent),
       },
       {
+        path: 'tasks',
+        loadComponent: () => import('./tasks/tasks-list/tasks-list').then(m => m.TasksListComponent),
+      },
+      {
         path: 'tasks/:id',
         loadComponent: () => import('./tasks/task-detail/task-detail').then(m => m.TaskDetailComponent),
       },
