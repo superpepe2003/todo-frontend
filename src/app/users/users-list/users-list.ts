@@ -1,7 +1,9 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { UsersService } from '../../core/services/users.service';
@@ -11,7 +13,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
 @Component({
   selector: 'app-users-list',
   standalone: true,
-  imports: [MatTableModule, MatButtonModule, MatIconModule],
+  imports: [MatTableModule, MatButtonModule, MatIconModule, MatTooltipModule],
   template: `
     <div class="page">
       <h1>Usuarios</h1>
@@ -26,33 +28,57 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
         </ng-container>
         <ng-container matColumnDef="role">
           <th mat-header-cell *matHeaderCellDef>Rol</th>
-          <td mat-cell *matCellDef="let u">{{ u.role }}</td>
+          <td mat-cell *matCellDef="let u">
+            <span class="role-badge" [class.role-admin]="u.role === 'ADMIN'">
+              {{ u.role === 'ADMIN' ? 'Admin' : 'Usuario' }}
+            </span>
+          </td>
         </ng-container>
         <ng-container matColumnDef="actions">
           <th mat-header-cell *matHeaderCellDef></th>
-          <td mat-cell *matCellDef="let u">
-            <button mat-icon-button (click)="toggleRole(u)">
+          <td mat-cell *matCellDef="let u" class="actions-cell">
+            <button mat-icon-button matTooltip="Ver tareas" (click)="viewDetail(u, $event)">
+              <mat-icon>assignment</mat-icon>
+            </button>
+            <button mat-icon-button matTooltip="Cambiar rol" (click)="toggleRole(u, $event)">
               <mat-icon>swap_horiz</mat-icon>
             </button>
-            <button mat-icon-button color="warn" (click)="deleteUser(u)">
+            <button mat-icon-button color="warn" matTooltip="Eliminar" (click)="deleteUser(u, $event)">
               <mat-icon>delete</mat-icon>
             </button>
           </td>
         </ng-container>
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"
+            class="clickable-row"
+            (click)="viewDetail(row, $event)">
+        </tr>
       </table>
     </div>
   `,
   styles: [`
     .page { padding: 24px; }
+    .page h1 { font-size: 1.5rem; font-weight: 600; color: var(--c-text); margin-bottom: 20px; }
     .full-width { width: 100%; }
+
+    .clickable-row { cursor: pointer; transition: background 150ms; }
+    .clickable-row:hover { background: var(--c-primary-10) !important; }
+
+    .role-badge {
+      display: inline-block; padding: 3px 10px; border-radius: 20px;
+      font-size: 12px; font-weight: 600;
+      background: #f1f5f9; color: var(--c-text-secondary);
+    }
+    .role-admin { background: var(--c-primary-10); color: var(--c-primary); }
+
+    .actions-cell { text-align: right; white-space: nowrap; }
   `],
 })
 export class UsersListComponent implements OnInit {
   private readonly usersService = inject(UsersService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly router = inject(Router);
 
   readonly users = signal<User[]>([]);
   displayedColumns = ['name', 'email', 'role', 'actions'];
@@ -65,18 +91,34 @@ export class UsersListComponent implements OnInit {
     this.usersService.getUsers().subscribe(users => this.users.set(users));
   }
 
-  toggleRole(user: User): void {
+  viewDetail(user: User, event: Event): void {
+    event.stopPropagation();
+    this.router.navigate(['/admin/users', user.id]);
+  }
+
+  toggleRole(user: User, event: Event): void {
+    event.stopPropagation();
     const newRole = user.role === 'ADMIN' ? 'USER' : 'ADMIN';
-    this.usersService.updateRole(user.id, newRole).subscribe({
-      next: () => {
-        this.snackBar.open(`Rol cambiado a ${newRole}`, 'Cerrar', { duration: 3000 });
-        this.loadUsers();
+    const ref = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'Cambiar rol',
+        message: `¿Estás seguro que querés cambiar el rol de ${user.name} de ${user.role} a ${newRole}?`,
       },
-      error: () => this.snackBar.open('Error al cambiar rol', 'Cerrar', { duration: 3000 }),
+    });
+    ref.afterClosed().subscribe(confirmed => {
+      if (!confirmed) return;
+      this.usersService.updateRole(user.id, newRole).subscribe({
+        next: () => {
+          this.snackBar.open(`Rol cambiado a ${newRole}`, 'Cerrar', { duration: 3000 });
+          this.loadUsers();
+        },
+        error: () => this.snackBar.open('Error al cambiar rol', 'Cerrar', { duration: 3000 }),
+      });
     });
   }
 
-  deleteUser(user: User): void {
+  deleteUser(user: User, event: Event): void {
+    event.stopPropagation();
     const ref = this.dialog.open(ConfirmDialogComponent, {
       data: { title: 'Eliminar usuario', message: `¿Eliminar a "${user.name}"?` },
     });
