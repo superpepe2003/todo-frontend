@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { ReactiveFormsModule, FormBuilder } from '@angular/forms';
+import { ReactiveFormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -15,10 +15,13 @@ import { DatePipe } from '@angular/common';
 import { forkJoin } from 'rxjs';
 import { TasksService } from '../../core/services/tasks.service';
 import { AppsService } from '../../core/services/apps.service';
+import { UsersService } from '../../core/services/users.service';
 import { AuthService } from '../../core/services/auth.service';
 import { Task, TaskStatus } from '../../core/models/task.model';
 import { App } from '../../core/models/app.model';
+import { User } from '../../core/models/user.model';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge';
+import { StarRatingComponent } from '../../shared/components/star-rating/star-rating';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog';
 
 @Component({
@@ -29,7 +32,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
     MatCardModule, MatButtonModule, MatIconModule,
     MatProgressBarModule, MatFormFieldModule, MatSelectModule,
     MatProgressSpinnerModule, MatTooltipModule, DatePipe,
-    StatusBadgeComponent,
+    StatusBadgeComponent, StarRatingComponent,
   ],
   template: `
     <div class="page">
@@ -69,6 +72,19 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
             <mat-option value="CANCELLED">Cancelada</mat-option>
           </mat-select>
         </mat-form-field>
+
+        <!-- Filtro por usuario: solo ADMIN -->
+        @if (isAdmin) {
+          <mat-form-field appearance="outline" class="filter-field">
+            <mat-label>Asignada a</mat-label>
+            <mat-select [value]="filterUserId()" (selectionChange)="filterUserId.set($event.value)">
+              <mat-option [value]="null">Todos los usuarios</mat-option>
+              @for (u of users(); track u.id) {
+                <mat-option [value]="u.id">{{ u.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        }
       </div>
 
       <!-- Lista -->
@@ -122,8 +138,11 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
                   </div>
                 </div>
 
-                <!-- Título -->
+                <!-- Título + prioridad -->
                 <h3 class="task-title">{{ task.title }}</h3>
+                <div class="task-priority">
+                  <app-star-rating [value]="task.priority" [readonly]="true" />
+                </div>
 
                 <!-- Meta: asignado + deadline + tipo -->
                 <div class="task-meta">
@@ -164,7 +183,6 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
     .page-header h1 { font-size: 1.5rem; font-weight: 600; color: var(--c-text); margin: 0 0 2px; }
     .subtitle { font-size: 13px; color: var(--c-text-secondary); margin: 0; }
 
-    /* Filtros */
     .filters-bar {
       display: flex; gap: 12px; flex-wrap: wrap;
       margin-bottom: 24px;
@@ -172,26 +190,22 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
     .filter-field { width: 200px; }
     :host ::ng-deep .filter-field .mat-mdc-form-field-subscript-wrapper { display: none; }
 
-    /* Loading */
     .loading-container {
       display: flex; flex-direction: column; align-items: center;
       gap: 16px; padding: 64px; color: var(--c-text-secondary);
     }
 
-    /* Grid de tarjetas */
     .tasks-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
       gap: 16px;
     }
 
-    /* Card de tarea */
     .task-card { border-left: 4px solid var(--c-border) !important; }
     .task-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover) !important; }
     .task-overdue { border-left-color: var(--c-warn) !important; }
     :host ::ng-deep .task-card .mat-mdc-card-content { padding: 16px !important; }
 
-    /* Top row */
     .card-top {
       display: flex; justify-content: space-between; align-items: flex-start;
       margin-bottom: 10px; gap: 8px;
@@ -199,7 +213,6 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
     .card-top-left { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex: 1; }
     .card-actions { display: flex; align-items: center; gap: 0; flex-shrink: 0; }
 
-    /* App tag */
     .app-tag {
       display: inline-flex; align-items: center; gap: 3px;
       background: var(--c-primary-10); color: var(--c-primary);
@@ -208,7 +221,6 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
     }
     .app-tag mat-icon { font-size: 12px; width: 12px; height: 12px; }
 
-    /* Overdue badge */
     .overdue-badge {
       display: inline-flex; align-items: center; gap: 3px;
       background: #ffe4e6; color: var(--c-warn);
@@ -217,10 +229,10 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
     }
     .overdue-badge mat-icon { font-size: 12px; width: 12px; height: 12px; }
 
-    /* Título */
-    .task-title { font-size: 14px; font-weight: 600; color: var(--c-text); margin: 0 0 10px; line-height: 1.4; }
+    .task-title { font-size: 14px; font-weight: 600; color: var(--c-text); margin: 0 0 4px; line-height: 1.4; }
 
-    /* Meta */
+    .task-priority { margin-bottom: 10px; }
+
     .task-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
     .meta-item {
       display: inline-flex; align-items: center; gap: 3px;
@@ -229,12 +241,10 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
     .meta-item mat-icon { font-size: 13px; width: 13px; height: 13px; }
     .meta-overdue { color: var(--c-warn) !important; font-weight: 500; }
 
-    /* Progreso */
     .progress-row { display: flex; align-items: center; gap: 10px; }
     .progress-row mat-progress-bar { flex: 1; }
     .progress-pct { font-size: 12px; font-weight: 700; color: var(--c-primary); white-space: nowrap; }
 
-    /* Empty state */
     .empty-state {
       display: flex; flex-direction: column; align-items: center;
       gap: 12px; padding: 64px; color: #c0c8d8; text-align: center;
@@ -246,6 +256,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
 export class TasksListComponent implements OnInit {
   private readonly tasksService = inject(TasksService);
   private readonly appsService = inject(AppsService);
+  private readonly usersService = inject(UsersService);
   private readonly authService = inject(AuthService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
@@ -253,15 +264,20 @@ export class TasksListComponent implements OnInit {
   readonly loading = signal(false);
   readonly tasks = signal<Task[]>([]);
   readonly apps = signal<App[]>([]);
+  readonly users = signal<User[]>([]);
+
   readonly filterAppId = signal<number | null>(null);
   readonly filterStatus = signal<TaskStatus | null>(null);
+  readonly filterUserId = signal<number | null>(null);
 
   readonly filteredTasks = computed(() => {
     let list = this.tasks();
     const appId = this.filterAppId();
     const status = this.filterStatus();
+    const userId = this.filterUserId();
     if (appId) list = list.filter(t => t.appId === appId);
     if (status) list = list.filter(t => t.status === status);
+    if (userId) list = list.filter(t => t.assignedToId === userId);
     return list;
   });
 
@@ -271,13 +287,15 @@ export class TasksListComponent implements OnInit {
 
   ngOnInit(): void {
     this.loading.set(true);
-    forkJoin([
-      this.tasksService.getTasks(),
-      this.appsService.getApps(),
-    ]).subscribe({
-      next: ([tasks, apps]) => {
+    const requests$ = this.isAdmin
+      ? forkJoin([this.tasksService.getTasks(), this.appsService.getApps(), this.usersService.getUsers()])
+      : forkJoin([this.tasksService.getTasks(), this.appsService.getApps()]);
+
+    requests$.subscribe({
+      next: ([tasks, apps, users]: any[]) => {
         this.tasks.set(tasks);
         this.apps.set(apps);
+        if (users) this.users.set(users);
         this.loading.set(false);
       },
       error: () => {

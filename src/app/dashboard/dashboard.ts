@@ -356,8 +356,8 @@ export class DashboardComponent implements OnInit {
   ngOnInit(): void {
     // Cargar tareas activas en paralelo (sin anidar subscribes)
     forkJoin([
-      this.tasksService.getTasks({ status: 'PENDING' }),
-      this.tasksService.getTasks({ status: 'IN_PROGRESS' }),
+      this.tasksService.getTasks({ status: 'PENDING',     assignedToId: this.authService.currentUser!.id }),
+      this.tasksService.getTasks({ status: 'IN_PROGRESS', assignedToId: this.authService.currentUser!.id }),
     ]).subscribe(([pending, inProgress]) => {
       const sorted = [...pending, ...inProgress].sort((a, b) => {
         // 1. Prioridad DESC

@@ -154,6 +154,7 @@ export class TaskFormComponent implements OnInit {
 
   isEdit = false;
   taskId: number | null = null;
+  appIdFromRoute: number | null = null;
   readonly apps = signal<App[]>([]);
   readonly users = signal<User[]>([]);
 
@@ -205,10 +206,11 @@ export class TaskFormComponent implements OnInit {
       return;
     }
 
-    // Modo creación: pre-llena appId si viene de app-detail
+    // Modo creación: pre-llena appId si viene de app-detail y guarda el origen
     const appIdParam = this.route.snapshot.queryParamMap.get('appId');
     if (appIdParam) {
-      this.form.patchValue({ appId: Number(appIdParam) });
+      this.appIdFromRoute = Number(appIdParam);
+      this.form.patchValue({ appId: this.appIdFromRoute });
     }
   }
 
@@ -232,7 +234,13 @@ export class TaskFormComponent implements OnInit {
     request.subscribe({
       next: task => {
         this.snackBar.open(this.isEdit ? 'Tarea actualizada' : 'Tarea creada', 'Cerrar', { duration: 3000 });
-        this.router.navigate(['/tasks', task.id]);
+        if (this.isEdit) {
+          this.router.navigate(['/tasks', task.id]);
+        } else if (this.appIdFromRoute) {
+          this.router.navigate(['/apps', this.appIdFromRoute]);
+        } else {
+          this.router.navigate(['/tasks']);
+        }
       },
       error: () => this.snackBar.open('Error al guardar', 'Cerrar', { duration: 3000 }),
     });
