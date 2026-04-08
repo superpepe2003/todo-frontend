@@ -16,9 +16,11 @@ import { TasksService } from '../../core/services/tasks.service';
 import { AppsService } from '../../core/services/apps.service';
 import { UsersService } from '../../core/services/users.service';
 import { AuthService } from '../../core/services/auth.service';
+import { CategoriesService } from '../../core/services/categories.service';
 import { Task, TaskStatus } from '../../core/models/task.model';
 import { App } from '../../core/models/app.model';
 import { User } from '../../core/models/user.model';
+import { Category } from '../../core/models/category.model';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge';
 import { StarRatingComponent } from '../../shared/components/star-rating/star-rating';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog';
@@ -71,6 +73,24 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
             <mat-option value="CANCELLED">Cancelada</mat-option>
           </mat-select>
         </mat-form-field>
+
+        <!-- Filtro por categoría -->
+        @if (categories().length > 0) {
+          <mat-form-field appearance="outline" class="filter-field">
+            <mat-label>Categoría</mat-label>
+            <mat-select [value]="filterCategoryId()" (selectionChange)="filterCategoryId.set($event.value)">
+              <mat-option [value]="null">Todas</mat-option>
+              @for (cat of categories(); track cat.id) {
+                <mat-option [value]="cat.id">
+                  <span class="cat-option">
+                    <span class="cat-dot" [style.background]="cat.color"></span>
+                    {{ cat.name }}
+                  </span>
+                </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        }
 
         <!-- Filtro por usuario: solo ADMIN -->
         @if (isAdmin) {
@@ -188,6 +208,8 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
     }
     .filter-field { width: 200px; }
     :host ::ng-deep .filter-field .mat-mdc-form-field-subscript-wrapper { display: none; }
+    .cat-option { display: flex; align-items: center; gap: 8px; }
+    .cat-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
 
     .loading-container {
       display: flex; flex-direction: column; align-items: center;
@@ -257,6 +279,7 @@ export class TasksListComponent implements OnInit {
   private readonly appsService = inject(AppsService);
   private readonly usersService = inject(UsersService);
   private readonly authService = inject(AuthService);
+  private readonly categoriesService = inject(CategoriesService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
 
@@ -264,19 +287,23 @@ export class TasksListComponent implements OnInit {
   readonly tasks = signal<Task[]>([]);
   readonly apps = signal<App[]>([]);
   readonly users = signal<User[]>([]);
+  readonly categories = signal<Category[]>([]);
 
   readonly filterAppId = signal<number | null>(null);
   readonly filterStatus = signal<TaskStatus | null>(null);
   readonly filterUserId = signal<number | null>(null);
+  readonly filterCategoryId = signal<number | null>(null);
 
   readonly filteredTasks = computed(() => {
     let list = this.tasks();
     const appId = this.filterAppId();
     const status = this.filterStatus();
     const userId = this.filterUserId();
+    const categoryId = this.filterCategoryId();
     if (appId) list = list.filter(t => t.appId === appId);
     if (status) list = list.filter(t => t.status === status);
     if (userId) list = list.filter(t => t.assignedToId === userId);
+    if (categoryId) list = list.filter(t => t.app?.categoryId === categoryId);
     return list;
   });
 
@@ -294,6 +321,10 @@ export class TasksListComponent implements OnInit {
 
     this.appsService.getApps().subscribe({
       next: apps => this.apps.set(apps),
+    });
+
+    this.categoriesService.getCategories().subscribe({
+      next: cats => this.categories.set(cats),
     });
 
     if (this.isAdmin) {

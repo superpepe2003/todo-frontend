@@ -29,6 +29,6 @@ export interface Task {
   isOverdue?: boolean;
   assignedTo?: { id: number; name: string; email?: string };
   createdBy?: { id: number; name: string };
-  app?: { id: number; name: string };
+  app?: { id: number; name: string; categoryId?: number };
   progressLogs?: TaskProgress[];
 }

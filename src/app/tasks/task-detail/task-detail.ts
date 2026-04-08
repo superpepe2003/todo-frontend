@@ -293,7 +293,10 @@ export class TaskDetailComponent implements OnInit {
   }
 
   openProgressForm(): void {
-    const ref = this.dialog.open(ProgressFormComponent, { width: '500px' });
+    const ref = this.dialog.open(ProgressFormComponent, {
+      width: '500px',
+      data: { currentProgress: this.task()!.progress },
+    });
     ref.afterClosed().subscribe(result => {
       if (result) {
         this.tasksService.addProgress(this.task()!.id, result).subscribe({
