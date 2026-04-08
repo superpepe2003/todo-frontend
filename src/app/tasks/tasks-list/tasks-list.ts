@@ -12,7 +12,6 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { DatePipe } from '@angular/common';
-import { forkJoin } from 'rxjs';
 import { TasksService } from '../../core/services/tasks.service';
 import { AppsService } from '../../core/services/apps.service';
 import { UsersService } from '../../core/services/users.service';
@@ -287,22 +286,21 @@ export class TasksListComponent implements OnInit {
 
   ngOnInit(): void {
     this.loading.set(true);
-    const requests$ = this.isAdmin
-      ? forkJoin([this.tasksService.getTasks(), this.appsService.getApps(), this.usersService.getUsers()])
-      : forkJoin([this.tasksService.getTasks(), this.appsService.getApps()]);
 
-    requests$.subscribe({
-      next: ([tasks, apps, users]: any[]) => {
-        this.tasks.set(tasks);
-        this.apps.set(apps);
-        if (users) this.users.set(users);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.snackBar.open('Error al cargar tareas', 'Cerrar', { duration: 3000 });
-        this.loading.set(false);
-      },
+    this.tasksService.getTasks().subscribe({
+      next: tasks => { this.tasks.set(tasks); this.loading.set(false); },
+      error: () => { this.snackBar.open('Error al cargar tareas', 'Cerrar', { duration: 3000 }); this.loading.set(false); },
     });
+
+    this.appsService.getApps().subscribe({
+      next: apps => this.apps.set(apps),
+    });
+
+    if (this.isAdmin) {
+      this.usersService.getUsers().subscribe({
+        next: users => this.users.set(users),
+      });
+    }
   }
 
   cancelTask(task: Task): void {

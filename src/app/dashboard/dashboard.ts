@@ -182,7 +182,7 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
                         <mat-icon>schedule</mat-icon> Vencida
                       </span>
                     }
-                    @if (task.isOverdue && (task.priority ?? 3) >= 4) {
+                    @if (task.isOverdue && task.priority >= 4) {
                       <span class="urgent-badge">URGENTE</span>
                     }
                   </div>
@@ -192,7 +192,7 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
                 </div>
                 <h3 class="task-title">{{ task.title }}</h3>
                 <div class="task-stars">
-                  <app-star-rating [value]="task.priority ?? 3" [readonly]="true" />
+                  <app-star-rating [value]="task.priority" [readonly]="true" />
                 </div>
                 <div class="task-meta">
                   <mat-icon class="meta-icon">folder_open</mat-icon>
