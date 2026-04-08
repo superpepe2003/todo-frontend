@@ -9,7 +9,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { DatePipe } from '@angular/common';
-import { forkJoin } from 'rxjs';
+import { forkJoin, filter, take, switchMap } from 'rxjs';
 import { TasksService } from '../core/services/tasks.service';
 import { AuthService } from '../core/services/auth.service';
 import { AppsService } from '../core/services/apps.service';
@@ -354,11 +354,16 @@ export class DashboardComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // Cargar tareas activas en paralelo (sin anidar subscribes)
-    forkJoin([
-      this.tasksService.getTasks({ status: 'PENDING',     assignedToId: this.authService.currentUser!.id }),
-      this.tasksService.getTasks({ status: 'IN_PROGRESS', assignedToId: this.authService.currentUser!.id }),
-    ]).subscribe(([pending, inProgress]) => {
+    // Esperar a que currentUser esté disponible (loadCurrentUser es async en App.ngOnInit)
+    // y luego cargar solo las tareas del usuario logueado
+    this.authService.currentUser$.pipe(
+      filter(u => u !== null),
+      take(1),
+      switchMap(user => forkJoin([
+        this.tasksService.getTasks({ status: 'PENDING',     assignedToId: user!.id }),
+        this.tasksService.getTasks({ status: 'IN_PROGRESS', assignedToId: user!.id }),
+      ])),
+    ).subscribe(([pending, inProgress]) => {
       const sorted = [...pending, ...inProgress].sort((a, b) => {
         // 1. Prioridad DESC
         const pDiff = (b.priority ?? 3) - (a.priority ?? 3);
